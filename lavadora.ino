@@ -1,3 +1,11 @@
+// version 1.0 de la lavadora con arduino
+// la valvula de entrada de agua o val1 estara conectada al pin3
+// el giro del motor 1 o giro1 en el sentido contrario a la manecillas el reloj, estara conectado al pin 4
+// el giro del motor 2 o giro2 en el sentido de las manecillas el reloj, estara conectado al pin 5
+// la bomba de agua estara conectada junto del el bloqueo del tanque ya que solo dispongo de 4 reles, en el pin 6
+// el modulo de reles se activa con os pines en bajo, o LOW, o 0 logico.
+// este codigo fue creado por Santiago Eusse Toro.
+
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 

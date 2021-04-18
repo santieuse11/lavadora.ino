@@ -101,7 +101,7 @@ void llenado() {
 }
 
 //FUNCION DE LAVADO
-void lavado() {            
+void lavado() {
 
   ciclo = ciclos[1];         // SE ACTUALIZA EL ESTADO EN PANTALLA "LAVANDO"
   digitalWrite(val1, HIGH);      // SE APAGA LA VALVULA DE ENTRADA DE AGUA
@@ -119,7 +119,7 @@ void lavado() {
   }
 
   if (paso == 1) {               //PASO DE LAVADO 1  CICLO DE MOTOR APAGADO
-    digitalWrite(giro1, HIGH);   
+    digitalWrite(giro1, HIGH);
     digitalWrite(giro2, HIGH);
   }
   else if (paso == 2) {        //PASO DE LAVADO 2  CICLO DE GIRO EN EL SENTIDO CONTRARIO A LAS MANECILLAS DEL RELOJ
@@ -142,7 +142,7 @@ void lavado() {
 }
 
 //FUNCION DE VACIADO DE TANQUE
-void vaciado() {               
+void vaciado() {
 
   ciclo = ciclos[2];         //ACTUALIZAMOS EL ESTADO EN PANTALLA A "VACIANDO"
   digitalWrite(val1, HIGH);   // APAGAMOS FUNCIONES QUE NO NECESITAMOS
@@ -154,24 +154,28 @@ void vaciado() {
 
 void acelerar() {          //FUNCION PARA ACELERAR EL TANQUE PARA CENTRIFUGAR
 
+
+  if (minuto == 32 && segundos <= 1 ) {
+    paso = 1;
+  }
+
+  if (minuto == 55 && segundos <= 1 ) {
+    paso = 1;
+  }
+
   ciclo = ciclos[3];
   digitalWrite(val1, HIGH);    // APAGAMOS FUNCIONES QUE NO NECESITAMOS
   digitalWrite(giro1, HIGH);
-  
+
   digitalWrite(bomba, LOW);  //MANTENEMOS ENCENDIDO
 
-  if (minuto == 40 && segundos <= 1 ) {
-    paso = 1;
-  }
-
-  if (minuto == 60 && segundos <= 1 ) {
-    paso = 1;
-  }
 
   if (paso == 1) {
     digitalWrite(giro2, HIGH);
+    digitalWrite(giro1, HIGH);
   } else if (paso == 2) {
     digitalWrite(giro2, LOW);
+    digitalWrite(giro1, HIGH);
   }
 
   if (paso == 2) {

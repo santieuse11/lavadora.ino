@@ -1,4 +1,4 @@
-// version 1.0 de la lavadora con arduino
+// version 1.1 de la lavadora con arduino
 // la valvula de entrada de agua o val1 estara conectada al pin3
 // el giro del motor 1 o giro1 en el sentido contrario a la manecillas el reloj, estara conectado al pin 4
 // el giro del motor 2 o giro2 en el sentido de las manecillas el reloj, estara conectado al pin 5
@@ -9,92 +9,184 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
-String ciclos[4 ] = {"LLENANDO",
+// ESTE ARREGLO DETERMINA EN QUE ESTADO SE ENCUENTRA NUESTRA LAVADORA
+String ciclos[6 ] = {"LLENANDO",
                      "LAVANDO",
+                     "VACIANDO",
+                     "ACELERAR",
                      "CENTRIFUGANDO",
                      "ESPERA"
                     };
 
-bool estado = 0;
-
-bool led = true;                //Estado del LED
-unsigned long hora = 0;         //Hora de cambio de estado
-const int intervalo = 1000;      //Intervalo de parpadeo (millisegundos)
+bool led = true;
+unsigned long hora = 0;
+const int intervalo = 1000;
 
 int contador = 0;
 int segundos = 0;
 int minuto = 0;
-int pausa = 0;
 
-String ciclo;
+String ciclo;    // VARIABLE PARA LA ACTUALIZACION DEL CICLO ENLA PANTALL
+int paso = 0;    // REGISTRO DE PASO PARA EL LAVADO Y EL CICLO DE ACELERACION DEL TANQUE
 
-int amarillo = 9;
-int paso = 0;
-
-int val1 =  3;    // valvula de entrada de agua
-int giro1 = 4;    // giro del motor 1
-int giro2 = 5;    // giro del motor 2
-int bomba = 6;    // bomba de agua
-int bloqueo = 7;  // bloqueode tanque
-int alarma = 8;   // alarma fimal de lavado
+int val1 =  3;    // VALVULA DE ENTRADA DE AGUA
+int giro1 = 4;    // GIRO DEL MOTOR
+int giro2 = 5;    // GIRO DEL MOTOR
+int bomba = 6;    // BOMBA DE AGUA
+int bloqueo = 7;  // BLOQUEO DE TANQUE O FRENO DEL TANQUE (AUN NO UTILIZADO)
+int alarma = 8;   // ALARMA BUZZER PARA FIN DE LAVADO (AUN NO UTILIZADO)
 
 
+// si la direccion 0x27 no funciona, prueba con 0x28 ó con 0x3F
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-LiquidCrystal_I2C lcd(0x3F, 20, 4);
-
+//CONFIGURACION DE PINES
 void setup() {
 
-  pinMode(val1, OUTPUT);
+  //CONFIGURAMOS LOS PINES DE SALIDA NECESARIOS PARA NUESTRA LAVADORA
+  pinMode(val1, OUTPUT);   // VALVULA UNO O VAL1
   pinMode(giro1, OUTPUT);
   pinMode(giro2, OUTPUT);
   pinMode(bomba, OUTPUT);
   pinMode(bloqueo, OUTPUT);
   pinMode(alarma, OUTPUT);
-  pinMode(LED_BUILTIN, OUTPUT);
-  pinMode(amarillo, OUTPUT);
-  pinMode(22, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);   // LED INDICATIVO DE TRANCURSO DEL TIEMPO
 
-  digitalWrite(22, LOW);
+  // CONFIGURACION INICIAL DE LOS PINES EN ALTO, YA QUE LOS RELES ENCIENDEN CUANDO PONEMOS EN BAJO EL PIN
+  // CONFIGURAMOIS EN ALTO LOS PINES PARA QUE LOS RELES ESTEN APAGADOS AL INICIO DEL LOOP
   digitalWrite(val1, HIGH);
   digitalWrite(giro1, HIGH);
   digitalWrite(giro2, HIGH);
   digitalWrite(bomba, HIGH);
-  digitalWrite(amarillo, LOW);
 
+  //INICIALIZACION DE LA PANTALLA LCD 16X2
   lcd.init();
   lcd.backlight();
-  lcd.setCursor(6, 1);
+  lcd.setCursor(3, 0);
   lcd.print("LAVADORA");
-  lcd.setCursor(6, 2);
-  lcd.print("VER  1.0");
+  lcd.setCursor(3, 1);
+  lcd.print("VER  1.1");
   delay(2000);
 
+  // PRESENTAMOS NUESTRA PANTALLA INICIAL QUE MOSTRARA EL TIEMPO Y EL ESTADO SE NUESTRA LAVADORA
   PantallaLavado();
-
-}
-/////////////////////////////////////////////
-void prender() {
-  for (long i = 0; i <= 50000; i++) {
-    digitalWrite(amarillo, 1);
-  }
-  digitalWrite(amarillo, 0);
 }
 
+//FUNCIONES PARA OPTIMIZAR UN POCO EL CODIGO
+
+//FUNCION PARA MOSTRAR EN PANTALLA EL TIEMPO Y EL ESTADO DE LA LAVADORA
 void PantallaLavado() {
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print(ciclo);
-  lcd.setCursor(0, 3);
+  lcd.setCursor(0, 1);
   lcd.print("TIEMPO");
-  lcd.setCursor(8, 3);
+  lcd.setCursor(8, 1);
   lcd.print(minuto);
-  lcd.setCursor(11, 3);
+  lcd.setCursor(11, 1);
   lcd.print(segundos);
 
-  lcd.setCursor(0, 2);
-  lcd.print("estado");
-  lcd.setCursor(7, 2);
-  lcd.print(estado);
+}
+
+//FUNCION DE LLENADO
+void llenado() {
+
+  digitalWrite(giro1, HIGH); // APAGAMOS EL RELE DE GIRO
+  digitalWrite(giro2, HIGH); // APAGAMOS EL RELE DE GIRO
+  digitalWrite(bomba, HIGH); // APAGAMOS EL RELE DE BOMBA
+
+  ciclo = ciclos[0];         // ACTUALIZAMOS EL ESTADO EN PANTALLA "LLENANDO"
+  digitalWrite(val1, LOW);   // ENCENDEMOS LA VALVULA PARA QUE PUEDA ENTRAR AGUA
+
+}
+
+//FUNCION DE LAVADO
+void lavado() {
+
+  ciclo = ciclos[1];         // SE ACTUALIZA EL ESTADO EN PANTALLA "LAVANDO"
+  digitalWrite(val1, HIGH);      // SE APAGA LA VALVULA DE ENTRADA DE AGUA
+
+  if (paso == 1) {               //PASO DE LAVADO 1  CICLO DE MOTOR APAGADO
+    digitalWrite(giro1, HIGH);
+    digitalWrite(giro2, HIGH);
+  }
+  else if (paso == 2) {        //PASO DE LAVADO 2  CICLO DE GIRO EN EL SENTIDO CONTRARIO A LAS MANECILLAS DEL RELOJ
+    digitalWrite(giro1, LOW);
+    digitalWrite(giro2, HIGH);
+  }
+  else if (paso == 3) {        //PASO DE LAVADO 3  CICLO DE MOTOR APAGADO
+    digitalWrite(giro1, HIGH);
+    digitalWrite(giro2, HIGH);
+  }
+  else if (paso == 4) {        //PASO DE LAVADO 4  CICLO DE GIRO EN EL SENTIDO DE LAS MANECILLAS DEL RELOJ
+    digitalWrite(giro1, HIGH);
+    digitalWrite(giro2, LOW);
+  }
+
+  if (paso == 4) {              // RESETEAR LOS PASOS PARA REPETIR EL CICLO DE LAVADO DURANTE EL TIEMPO ESTIMADO
+    paso = 0;
+  }
+
+}
+
+//FUNCION DE VACIADO DE TANQUE
+void vaciado() {
+
+  ciclo = ciclos[2];         //ACTUALIZAMOS EL ESTADO EN PANTALLA A "VACIANDO"
+  digitalWrite(val1, HIGH);   // APAGAMOS FUNCIONES QUE NO NECESITAMOS
+  digitalWrite(giro1, HIGH);
+  digitalWrite(giro2, HIGH);
+
+  digitalWrite(bomba, LOW);     // ENCENDIDO DE LA BOMBA PARA VACIAR EL TANQUE
+
+}
+
+void acelerar() {          //FUNCION PARA ACELERAR EL TANQUE PARA CENTRIFUGAR
+
+
+  ciclo = ciclos[3];
+  digitalWrite(val1, HIGH);    // APAGAMOS FUNCIONES QUE NO NECESITAMOS
+  digitalWrite(giro1, HIGH);
+
+  digitalWrite(bomba, LOW);  //MANTENEMOS ENCENDIDO
+
+
+  if (paso == 1) {
+    digitalWrite(giro2, HIGH);
+    digitalWrite(giro1, HIGH);
+  } else if (paso == 2) {
+    digitalWrite(giro2, LOW);
+    digitalWrite(giro1, HIGH);
+  }
+
+  if (paso == 2) {
+    paso = 0;
+  }
+
+}
+
+void centrifugar() {       //FUNCION DE CENTRIFUGADO
+
+  ciclo = ciclos[4];
+  digitalWrite(val1, HIGH);
+  digitalWrite(giro1, HIGH);
+
+  digitalWrite(bomba, LOW);
+  digitalWrite(giro2, LOW);
+
+
+}
+
+void apagar() {
+
+  ciclo = ciclos[5];
+
+  digitalWrite(val1, HIGH);
+  digitalWrite(giro1, HIGH);
+  digitalWrite(bomba, HIGH);
+  digitalWrite(giro2, HIGH);
+
+
 }
 
 void loop() {
@@ -113,198 +205,115 @@ void loop() {
     }
 
     if (contador == 2) {
-      estado = !estado;
       contador = 0;
       paso = paso + 1;
     }
-
-    if (minuto == 3 && segundos <= 2) {
-      estado = 1;
-      paso = 1;
-    }
-    if (minuto == 33 && segundos <= 2) {
-      estado = 1;
-      paso = 1;
-    }
-    if (minuto == 22 && segundos <= 2) {
+    // COMPROBACION DE ACELERACION
+    if (minuto == 40 && segundos <= 2 ) {
       paso = 1;
     }
 
-    if (minuto == 52 && segundos <= 2) {
+    if (minuto == 60 && segundos <= 2 ) {
+      paso = 1;
+    }
+    // COMPROBACION DE LAVADO
+    if (minuto == 3 && segundos <= 2 ) {    // COMPROBACION NECESARIA PARA RESETEAR LOS PASOS DE LAVADO
       paso = 1;
     }
 
+    if (minuto == 28 && segundos <= 2 ) {   // COMPROBACION PARA EL SEGUNDO CICLO DE LAVADO
+      paso = 1;
+    }
+
+    if (minuto == 50 && segundos <= 2 ) {   // COMPROBACION PARA EL TERCER CICLO DE LAVADO
+      paso = 1;
+    }
 
     PantallaLavado();
 
-
-
-  }
-  ///////////////////////////////////////// llenado
-
-  if (minuto < 3) {
-
-    ciclo = ciclos[0];
-    digitalWrite(val1, LOW);
-
   }
 
+  ///////////////////////////////////////// LLENADO INICIAL DEL TANQUE
 
-
-  ///////////////////////////////////////////// lavado
-
-  if (minuto >= 3 && minuto < 20) {
-
-    digitalWrite(val1, HIGH);
-
-    if (paso == 1) {
-      digitalWrite(giro1, HIGH);
-      digitalWrite(giro2, HIGH);
-    } else if (paso == 2) {
-      digitalWrite(giro1, LOW);
-      digitalWrite(giro2, HIGH);
-    } else if (paso == 3) {
-      digitalWrite(giro1, HIGH);
-      digitalWrite(giro2, HIGH);
-    } else if (paso == 4) {
-      digitalWrite(giro1, HIGH);
-      digitalWrite(giro2, LOW);
-    }
-
-
-    if (paso == 4) {
-      paso = 0;
-    }
-
-    ciclo = ciclos[1];
-
+  if ( minuto < 3 ) {
+    llenado();
   }
 
+  ///////////////////////////////////////////// PRIMER CICLO DE LAVADO
 
-  ////////////////////////////////////////////
-
-  if (minuto >= 20 && minuto < 22) {
-    digitalWrite(val1, HIGH);
-    digitalWrite(giro1, HIGH);
-    digitalWrite(giro2, HIGH);
-
-    digitalWrite(bomba, LOW);
-
-    ciclo = ciclos[2];
-
-  }
-  if (minuto >= 22 && minuto < 23) {
-    digitalWrite(val1, HIGH);
-    digitalWrite(giro1, HIGH);
-
-    digitalWrite(bomba, LOW);
-    if (paso == 1) {
-      digitalWrite(giro2, HIGH);
-    } else if (paso == 2) {
-      digitalWrite(giro2, LOW);
-    }
-    if (paso == 2) {
-      paso = 0;
-    }
-
-    ciclo = ciclos[2];
-
+  if (minuto >= 3 && minuto < 23 ) {
+    lavado();
   }
 
-  if (minuto >= 23 && minuto < 30) {
-    digitalWrite(val1, HIGH);
-    digitalWrite(giro1, HIGH);
+  //////////////////////////////////////////// CILO DE VACIADO
 
-    digitalWrite(bomba, LOW);
-    digitalWrite(giro2, LOW);
-
-    ciclo = ciclos[2];
-
+  if (minuto >= 23 && minuto < 25 ) {
+    vaciado();
   }
 
-  if (minuto >= 30 && minuto < 33) {
-    digitalWrite(giro1, HIGH);
-    digitalWrite(bomba, HIGH);
-    digitalWrite(giro2, HIGH);
+  ///////////////////////////////////////// LLENADO PARA EL CICLO DE ENGUAGUE
 
-    ciclo = ciclos[0];
-    digitalWrite(val1, LOW);
-
-  }
-  if (minuto >= 33 && minuto < 50) {
-
-    digitalWrite(val1, HIGH);
-
-    if (paso == 1) {
-      digitalWrite(giro1, HIGH);
-      digitalWrite(giro2, HIGH);
-    } else if (paso == 2) {
-      digitalWrite(giro1, LOW);
-      digitalWrite(giro2, HIGH);
-    } else if (paso == 3) {
-      digitalWrite(giro1, HIGH);
-      digitalWrite(giro2, HIGH);
-    } else if (paso == 4) {
-      digitalWrite(giro1, HIGH);
-      digitalWrite(giro2, LOW);
-    }
-
-
-    if (paso == 4) {
-      paso = 0;
-    }
-
-    ciclo = ciclos[1];
-
+  if (minuto >= 25 && minuto < 28 ) {
+    llenado();
   }
 
-  if (minuto >= 50 && minuto < 52) {
-    digitalWrite(val1, HIGH);
-    digitalWrite(giro1, HIGH);
-    digitalWrite(giro2, HIGH);
+  ///////////////////////////////////////////// SEGUNDO CICLO DE LAVADO, ENGUAGUE DE ROPA
 
-    digitalWrite(bomba, LOW);
-
-    ciclo = ciclos[2];
-
+  if (minuto >= 28 && minuto < 38 ) {
+    lavado();
   }
 
-  if (minuto >= 52 && minuto < 53) {
-    digitalWrite(val1, HIGH);
-    digitalWrite(giro1, HIGH);
+  //////////////////////////////////////////// CILO DE VACIADO
 
-    digitalWrite(bomba, LOW);
-    if (paso == 1) {
-      digitalWrite(giro2, HIGH);
-    } else if (paso == 2) {
-      digitalWrite(giro2, LOW);
-    }
-    if (paso == 2) {
-      paso = 0;
-    }
+  if (minuto >= 38 && minuto < 40 ) {
+    vaciado();
+  }
+  ///////////////////////////////////////////// ACELERACION DE TANQUE
 
-    ciclo = ciclos[2];
-
+  if (minuto >= 40 && minuto < 42 ) {
+    acelerar();
   }
 
-  if (minuto >= 53 && minuto < 63) {
-    digitalWrite(val1, HIGH);
-    digitalWrite(giro1, HIGH);
+  ////////////////////////////////////////////// CENTRIFUGADO
 
-    digitalWrite(bomba, LOW);
-    digitalWrite(giro2, LOW);
-
-    ciclo = ciclos[2];
-
+  if (minuto >= 42 && minuto < 47 ) {
+    centrifugar();
   }
 
-  if (minuto >= 65 && minuto < 70) {
-    digitalWrite(val1, HIGH);
-    digitalWrite(giro1, HIGH);
-    digitalWrite(bomba, HIGH);
-    digitalWrite(giro2, HIGH);
+  //////////////////////////////////////////////////TERCER CILO DE LLENADO
 
-    ciclo = ciclos[3];
-
+  if (minuto >= 47 && minuto < 50 ) {
+    llenado();
   }
+
+  ///////////////////////////////////////////////////////////////// TERCER CICLO DE LAVADO
+
+  if (minuto >= 50 && minuto < 58 ) {
+    lavado();
+  }
+
+  ////////////////////////////////////////////////////////////////// CICLO DE VACIADO PARA SECADO FINAL
+
+  if (minuto >= 58 && minuto < 60 ) {
+    vaciado();
+  }
+
+  ////////////////////////////////////////////////////////// CICLO DE ACELERACION DEL TANQUE
+
+  if (minuto >= 60 && minuto < 62 ) {
+    acelerar();
+  }
+
+  ////////////////////////////////////////////////////////// SEGUNDO CICLO DE CENTRIFUGADO
+
+  if (minuto >= 62 && minuto < 70) {
+    centrifugar();
+  }
+
+  ////////////////////////////////////////////////////////// CICLO DE ESPERA AQUI SE APAGN TODAS LAS FUNCIONES
+
+  if (minuto >= 70 && minuto < 73) {
+    apagar();
+  }
+
 }

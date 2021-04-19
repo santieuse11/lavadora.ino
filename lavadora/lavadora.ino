@@ -106,18 +106,6 @@ void lavado() {
   ciclo = ciclos[1];         // SE ACTUALIZA EL ESTADO EN PANTALLA "LAVANDO"
   digitalWrite(val1, HIGH);      // SE APAGA LA VALVULA DE ENTRADA DE AGUA
 
-  if (minuto == 3 && segundos <= 1 ) {    // COMPROBACION NECESARIA PARA RESETEAR LOS PASOS DE LAVADO
-    paso = 1;
-  }
-
-  if (minuto == 28 && segundos <= 1 ) {   // COMPROBACION PARA EL SEGUNDO CICLO DE LAVADO
-    paso = 1;
-  }
-
-  if (minuto == 43 && segundos <= 1 ) {   // COMPROBACION PARA EL TERCER CICLO DE LAVADO
-    paso = 1;
-  }
-
   if (paso == 1) {               //PASO DE LAVADO 1  CICLO DE MOTOR APAGADO
     digitalWrite(giro1, HIGH);
     digitalWrite(giro2, HIGH);
@@ -150,18 +138,11 @@ void vaciado() {
   digitalWrite(giro2, HIGH);
 
   digitalWrite(bomba, LOW);     // ENCENDIDO DE LA BOMBA PARA VACIAR EL TANQUE
+
 }
 
 void acelerar() {          //FUNCION PARA ACELERAR EL TANQUE PARA CENTRIFUGAR
 
-
-  if (minuto == 32 && segundos <= 1 ) {
-    paso = 1;
-  }
-
-  if (minuto == 55 && segundos <= 1 ) {
-    paso = 1;
-  }
 
   ciclo = ciclos[3];
   digitalWrite(val1, HIGH);    // APAGAMOS FUNCIONES QUE NO NECESITAMOS
@@ -192,6 +173,7 @@ void centrifugar() {       //FUNCION DE CENTRIFUGADO
 
   digitalWrite(bomba, LOW);
   digitalWrite(giro2, LOW);
+
 
 }
 
@@ -225,6 +207,26 @@ void loop() {
     if (contador == 2) {
       contador = 0;
       paso = paso + 1;
+    }
+    // COMPROBACION DE ACELERACION
+    if (minuto == 40 && segundos <= 2 ) {
+      paso = 1;
+    }
+
+    if (minuto == 60 && segundos <= 2 ) {
+      paso = 1;
+    }
+    // COMPROBACION DE LAVADO
+    if (minuto == 3 && segundos <= 2 ) {    // COMPROBACION NECESARIA PARA RESETEAR LOS PASOS DE LAVADO
+      paso = 1;
+    }
+
+    if (minuto == 28 && segundos <= 2 ) {   // COMPROBACION PARA EL SEGUNDO CICLO DE LAVADO
+      paso = 1;
+    }
+
+    if (minuto == 50 && segundos <= 2 ) {   // COMPROBACION PARA EL TERCER CICLO DE LAVADO
+      paso = 1;
     }
 
     PantallaLavado();
@@ -263,54 +265,54 @@ void loop() {
 
   //////////////////////////////////////////// CILO DE VACIADO
 
-  if (minuto >= 30 && minuto < 32 ) {
+  if (minuto >= 38 && minuto < 40 ) {
     vaciado();
   }
   ///////////////////////////////////////////// ACELERACION DE TANQUE
 
-  if (minuto >= 32 && minuto < 34 ) {
+  if (minuto >= 40 && minuto < 42 ) {
     acelerar();
   }
 
   ////////////////////////////////////////////// CENTRIFUGADO
 
-  if (minuto >= 34 && minuto < 40 ) {
+  if (minuto >= 42 && minuto < 47 ) {
     centrifugar();
   }
 
   //////////////////////////////////////////////////TERCER CILO DE LLENADO
 
-  if (minuto >= 40 && minuto < 43 ) {
+  if (minuto >= 47 && minuto < 50 ) {
     llenado();
   }
 
   ///////////////////////////////////////////////////////////////// TERCER CICLO DE LAVADO
 
-  if (minuto >= 43 && minuto < 53 ) {
+  if (minuto >= 50 && minuto < 58 ) {
     lavado();
   }
 
   ////////////////////////////////////////////////////////////////// CICLO DE VACIADO PARA SECADO FINAL
 
-  if (minuto >= 53 && minuto < 55 ) {
+  if (minuto >= 58 && minuto < 60 ) {
     vaciado();
   }
 
   ////////////////////////////////////////////////////////// CICLO DE ACELERACION DEL TANQUE
 
-  if (minuto >= 55 && minuto < 56 ) {
+  if (minuto >= 60 && minuto < 62 ) {
     acelerar();
   }
 
   ////////////////////////////////////////////////////////// SEGUNDO CICLO DE CENTRIFUGADO
 
-  if (minuto >= 56 && minuto < 66) {
+  if (minuto >= 62 && minuto < 70) {
     centrifugar();
   }
 
   ////////////////////////////////////////////////////////// CICLO DE ESPERA AQUI SE APAGN TODAS LAS FUNCIONES
 
-  if (minuto >= 66 && minuto < 70) {
+  if (minuto >= 70 && minuto < 73) {
     apagar();
   }
 
